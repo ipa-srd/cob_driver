@@ -61,6 +61,8 @@
 #include <sequenceMode.h>
 #include <circleColorMode.h>
 #include <sweepColorMode.h>
+#include <distApproxMode.h>
+#include <glowColorMode.h>
 
 ModeFactory::ModeFactory()
 {
@@ -69,170 +71,184 @@ ModeFactory::~ModeFactory()
 {
 }
 
-Mode* ModeFactory::create(cob_light::LightMode requestMode, IColorO* colorO)
+boost::shared_ptr<Mode> ModeFactory::create(cob_light::LightMode requestMode, IColorO* colorO)
 {
-	Mode* mode = NULL;
-	color::rgba color;
-	color.r = requestMode.color.r;
-	color.g = requestMode.color.g;
-	color.b = requestMode.color.b;
-	color.a = requestMode.color.a;
+    boost::shared_ptr<Mode> mode;
+    color::rgba color;
+    color.r = requestMode.colors[0].r;
+    color.g = requestMode.colors[0].g;
+    color.b = requestMode.colors[0].b;
+    color.a = requestMode.colors[0].a;
 
-	switch(requestMode.mode)
-	{
-		case cob_light::LightMode::STATIC:
-			mode = new StaticMode(color, requestMode.priority, requestMode.frequency,\
-				requestMode.pulses, requestMode.timeout);
-		break;
+    switch(requestMode.mode)
+    {
+    case cob_light::LightModes::STATIC:
+        mode.reset(new StaticMode(color, requestMode.priority, requestMode.frequency,\
+                              requestMode.pulses, requestMode.timeout));
+        break;
 
-		case cob_light::LightMode::FLASH:
-			mode = new FlashMode(color, requestMode.priority, requestMode.frequency,\
-				requestMode.pulses, requestMode.timeout);
-		break;
+    case cob_light::LightModes::FLASH:
+        mode.reset(new FlashMode(color, requestMode.priority, requestMode.frequency,\
+                             requestMode.pulses, requestMode.timeout));
+        break;
 
-		case cob_light::LightMode::BREATH:
-			mode = new BreathMode(color, requestMode.priority, requestMode.frequency,\
-				requestMode.pulses, requestMode.timeout);
-		break;
+    case cob_light::LightModes::BREATH:
+        mode.reset(new BreathMode(color, requestMode.priority, requestMode.frequency,\
+                              requestMode.pulses, requestMode.timeout));
+        break;
 
-		case cob_light::LightMode::BREATH_COLOR:
-			mode = new BreathColorMode(color, requestMode.priority, requestMode.frequency,\
-				requestMode.pulses, requestMode.timeout);
-		break;
+    case cob_light::LightModes::BREATH_COLOR:
+        mode.reset(new BreathColorMode(color, requestMode.priority, requestMode.frequency,\
+                                   requestMode.pulses, requestMode.timeout));
+        break;
 
-		case cob_light::LightMode::FADE_COLOR:
-			mode = new FadeColorMode(color, requestMode.priority, requestMode.frequency,\
-				requestMode.pulses, requestMode.timeout);
-		break;
+    case cob_light::LightModes::FADE_COLOR:
+        mode.reset(new FadeColorMode(color, requestMode.priority, requestMode.frequency,\
+                                 requestMode.pulses, requestMode.timeout));
+        break;
 
-		case cob_light::LightMode::SEQ:
-		{
-      std::vector<seq_t> seqs;
-      for(size_t i = 0; i < requestMode.sequences.size(); i++)
-      {
-        seq_t seq;
-        seq.color.r = requestMode.sequences[i].color.r;
-        seq.color.g = requestMode.sequences[i].color.g;
-        seq.color.b = requestMode.sequences[i].color.b;
-        seq.color.a = requestMode.sequences[i].color.a;
-        seq.holdtime = requestMode.sequences[i].hold_time;
-        seq.crosstime = requestMode.sequences[i].cross_time;
-        seqs.push_back(seq);
-        std::cout<<"got new seq: "<<seq.color.r<<" "<<seq.color.g<<" "<<seq.color.b<<std::endl;
-      }
-      mode = new SequenceMode(seqs, requestMode.priority, requestMode.frequency,\
-        requestMode.pulses, requestMode.timeout);
-		}
-    break;
-
-		case cob_light::LightMode::CIRCLE_COLORS:
-		{
-      std::vector<color::rgba> colors;
-      if(requestMode.colors.empty())
-      {
-        colors.push_back(color);
-      }
-        else
+    case cob_light::LightModes::SEQ:
+    {
+        std::vector<seq_t> seqs;
+        for(size_t i = 0; i < requestMode.sequences.size(); i++)
         {
-          for(size_t i = 0; i < requestMode.colors.size(); i++)
-          {
-            color.r = requestMode.colors[i].r;
-            color.g = requestMode.colors[i].g;
-            color.b = requestMode.colors[i].b;
-            color.a = requestMode.colors[i].a;
-            colors.push_back(color);
-          }
+            seq_t seq;
+            seq.color.r = requestMode.sequences[i].color.r;
+            seq.color.g = requestMode.sequences[i].color.g;
+            seq.color.b = requestMode.sequences[i].color.b;
+            seq.color.a = requestMode.sequences[i].color.a;
+            seq.holdtime = requestMode.sequences[i].hold_time;
+            seq.crosstime = requestMode.sequences[i].cross_time;
+            seqs.push_back(seq);
+            std::cout<<"got new seq: "<<seq.color.r<<" "<<seq.color.g<<" "<<seq.color.b<<std::endl;
         }
-		    mode = new CircleColorMode(colors, colorO->getNumLeds(), requestMode.priority, requestMode.frequency, requestMode.pulses, requestMode.timeout);
-		}
-		break;
+        mode.reset(new SequenceMode(seqs, requestMode.priority, requestMode.frequency,\
+                                requestMode.pulses, requestMode.timeout));
+    }
+        break;
 
-    case cob_light::LightMode::SWEEP:
+    case cob_light::LightModes::CIRCLE_COLORS:
     {
         std::vector<color::rgba> colors;
         if(requestMode.colors.empty())
         {
-          colors.push_back(color);
+            colors.push_back(color);
         }
         else
         {
-          for(size_t i = 0; i < requestMode.colors.size(); i++)
-          {
-            color.r = requestMode.colors[i].r;
-            color.g = requestMode.colors[i].g;
-            color.b = requestMode.colors[i].b;
-            color.a = requestMode.colors[i].a;
-            colors.push_back(color);
-          }
+            for(size_t i = 0; i < requestMode.colors.size(); i++)
+            {
+                color.r = requestMode.colors[i].r;
+                color.g = requestMode.colors[i].g;
+                color.b = requestMode.colors[i].b;
+                color.a = requestMode.colors[i].a;
+                colors.push_back(color);
+            }
         }
-        mode = new SweepColorMode(colors, colorO->getNumLeds(), requestMode.priority, requestMode.frequency, requestMode.pulses, requestMode.timeout);
+        mode.reset(new CircleColorMode(colors, colorO->getNumLeds(), requestMode.priority, requestMode.frequency,\
+                                    requestMode.pulses, requestMode.timeout));
     }
-    break;
+        break;
 
-		default:
-			mode = NULL;
-	}
+    case cob_light::LightModes::SWEEP:
+    {
+        std::vector<color::rgba> colors;
+        if(requestMode.colors.empty())
+        {
+            colors.push_back(color);
+        }
+        else
+        {
+            for(size_t i = 0; i < requestMode.colors.size(); i++)
+            {
+                color.r = requestMode.colors[i].r;
+                color.g = requestMode.colors[i].g;
+                color.b = requestMode.colors[i].b;
+                color.a = requestMode.colors[i].a;
+                colors.push_back(color);
+            }
+        }
+        mode.reset(new SweepColorMode(colors, colorO->getNumLeds(), requestMode.priority, requestMode.frequency,
+                                    requestMode.pulses, requestMode.timeout));
+    }
+        break;
 
-	return mode;
+    case cob_light::LightModes::DIST_APPROX:
+        mode.reset(new DistApproxMode(colorO->getNumLeds(), requestMode.priority, requestMode.frequency,
+                                    requestMode.pulses, requestMode.timeout));
+        break;
+
+    case cob_light::LightModes::GLOW:
+            mode.reset(new GlowColorMode(color, requestMode.priority, requestMode.frequency,\
+                                  requestMode.pulses, requestMode.timeout));
+            break;
+
+    default:
+        mode.reset();
+    }
+
+    return mode;
 }
 
-Mode* ModeFactory::create(std::string requestMode, color::rgba color)
+boost::shared_ptr<Mode> ModeFactory::create(std::string requestMode, color::rgba color)
 {
-	Mode* mode = NULL;
+    boost::shared_ptr<Mode> mode;
 
-	if(requestMode == "Static" || requestMode == "static" || requestMode == "STATIC")
-	{
-			mode = new StaticMode(color);
-	}
-	else if(requestMode == "Flash" || requestMode == "flash" || requestMode == "FLASH")
-	{
-			mode = new FlashMode(color);
-	}
-	else if(requestMode == "Breath" || requestMode == "breath" || requestMode == "BREATH")
-	{
-			mode = new BreathMode(color);
-	}
-	else if(requestMode == "BreathColor" || requestMode == "BreathColor" || requestMode == "BreathColor" ||
-		requestMode == "Breath_Color" || requestMode == "breath_color" || requestMode == "BREATH_COLOR")
-	{
-			mode = new BreathColorMode(color);
-	}
-	else if(requestMode == "FadeColor" || requestMode == "fadecolor" || requestMode == "FADECOLOR" ||
-		requestMode == "Fade_Color" || requestMode == "fade_color" || requestMode == "FADE_COLOR")
-	{
-			mode = new FadeColorMode(color);
-	}
-	else
-	{
-		mode = NULL;
-	}
+    if(requestMode == "Static" || requestMode == "static" || requestMode == "STATIC")
+    {
+        mode.reset(new StaticMode(color));
+    }
+    else if(requestMode == "Flash" || requestMode == "flash" || requestMode == "FLASH")
+    {
+        mode.reset(new FlashMode(color));
+    }
+    else if(requestMode == "Breath" || requestMode == "breath" || requestMode == "BREATH")
+    {
+        mode.reset(new BreathMode(color));
+    }
+    else if(requestMode == "BreathColor" || requestMode == "BreathColor" || requestMode == "BreathColor" ||
+            requestMode == "Breath_Color" || requestMode == "breath_color" || requestMode == "BREATH_COLOR")
+    {
+        mode.reset(new BreathColorMode(color));
+    }
+    else if(requestMode == "FadeColor" || requestMode == "fadecolor" || requestMode == "FADECOLOR" ||
+            requestMode == "Fade_Color" || requestMode == "fade_color" || requestMode == "FADE_COLOR")
+    {
+        mode.reset(new FadeColorMode(color));
+    }
+    else
+        mode.reset();
 
-	return mode;
+    return mode;
 }
 
 int ModeFactory::type(Mode *mode)
 {
-	int ret;
-	if (mode == NULL)
-		ret = cob_light::LightMode::NONE;
-	else if(dynamic_cast<StaticMode*>(mode) != NULL)
-		ret = cob_light::LightMode::STATIC;
-	else if(dynamic_cast<FlashMode*>(mode) != NULL)
-		ret = cob_light::LightMode::FLASH;
-	else if(dynamic_cast<BreathMode*>(mode) != NULL)
-		ret = cob_light::LightMode::BREATH;
-	else if(dynamic_cast<BreathColorMode*>(mode) != NULL)
-		ret = cob_light::LightMode::BREATH_COLOR;
-	else if(dynamic_cast<FadeColorMode*>(mode) != NULL)
-		ret = cob_light::LightMode::FADE_COLOR;
-  else if(dynamic_cast<SequenceMode*>(mode) != NULL)
-    ret = cob_light::LightMode::SEQ;
-  else if(dynamic_cast<CircleColorMode*>(mode) != NULL)
-    ret = cob_light::LightMode::CIRCLE_COLORS;
-  else if(dynamic_cast<SweepColorMode*>(mode) != NULL)
-    ret = cob_light::LightMode::SWEEP;
-	else
-		ret = cob_light::LightMode::NONE;
+    int ret;
+    if (mode == NULL)
+        ret = cob_light::LightModes::NONE;
+    else if(dynamic_cast<StaticMode*>(mode) != NULL)
+        ret = cob_light::LightModes::STATIC;
+    else if(dynamic_cast<FlashMode*>(mode) != NULL)
+        ret = cob_light::LightModes::FLASH;
+    else if(dynamic_cast<BreathMode*>(mode) != NULL)
+        ret = cob_light::LightModes::BREATH;
+    else if(dynamic_cast<BreathColorMode*>(mode) != NULL)
+        ret = cob_light::LightModes::BREATH_COLOR;
+    else if(dynamic_cast<FadeColorMode*>(mode) != NULL)
+        ret = cob_light::LightModes::FADE_COLOR;
+    else if(dynamic_cast<SequenceMode*>(mode) != NULL)
+        ret = cob_light::LightModes::SEQ;
+    else if(dynamic_cast<CircleColorMode*>(mode) != NULL)
+        ret = cob_light::LightModes::CIRCLE_COLORS;
+    else if(dynamic_cast<SweepColorMode*>(mode) != NULL)
+        ret = cob_light::LightModes::SWEEP;
+    else if(dynamic_cast<DistApproxMode*>(mode) != NULL)
+        ret = cob_light::LightModes::DIST_APPROX;
+    else if(dynamic_cast<GlowColorMode*>(mode) != NULL)
+        ret = cob_light::LightModes::GLOW;
+    else
+        ret = cob_light::LightModes::NONE;
 
-	return ret;
+    return ret;
 }

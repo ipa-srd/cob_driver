@@ -242,11 +242,11 @@ sensor_msgs::LaserScan scan_unifier_node::unifieLaserScans()
       ROS_DEBUG_STREAM("Converting scans to point clouds at index: " << i << ", at time: " << vec_laser_struct_.at(i).current_scan_msg.header.stamp << " now: " << ros::Time::now());
       try
       {
-        listener_.waitForTransform("/base_link", vec_laser_struct_.at(i).current_scan_msg.header.frame_id,
+        listener_.waitForTransform("base_link", vec_laser_struct_.at(i).current_scan_msg.header.frame_id,
             vec_laser_struct_.at(i).current_scan_msg.header.stamp, ros::Duration(3.0));
 
         ROS_DEBUG("now project to point_cloud");
-        projector_.transformLaserScanToPointCloud("/base_link",vec_laser_struct_.at(i).current_scan_msg, vec_cloud.at(i), listener_);
+        projector_.transformLaserScanToPointCloud("base_link",vec_laser_struct_.at(i).current_scan_msg, vec_cloud.at(i), listener_);
       }
       catch(tf::TransformException ex){
         ROS_ERROR("%s",ex.what());
